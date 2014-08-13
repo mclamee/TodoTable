@@ -1,25 +1,43 @@
 package com.wicky.tdl;
 
-import java.util.MissingResourceException;
-import java.util.ResourceBundle;
+import java.io.BufferedInputStream;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.util.Properties;
 
 /**
  * @author williamz<quiet_dog@163.com> 2014-08-13
  */
 public class ConfigUtil {
-    private static final String BUNDLE_NAME = "configuration";
+    private static final String FILE_PATH = System.getProperty("user.dir") + "/configuration.properties";
 
-    private static final ResourceBundle RESOURCE_BUNDLE = ResourceBundle.getBundle(BUNDLE_NAME);
+    private static Properties CONFIG = new Properties();
 
+    static{
+        BufferedInputStream inStream = null;
+        try {
+            inStream = new BufferedInputStream(new FileInputStream(FILE_PATH));
+            CONFIG.load(inStream);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }finally{
+            if(inStream != null){
+                try {
+                    inStream.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+    
     private ConfigUtil() {
     }
 
     public static String get(String key) {
-        try {
-            return RESOURCE_BUNDLE.getString(key);
-        } catch (MissingResourceException e) {
-            return '!' + key + '!';
-        }
+        String property = CONFIG.getProperty(key);
+        if (property == null) return "";
+        return property;
     }
 
     public static Integer getInt(String key) {
@@ -27,8 +45,6 @@ public class ConfigUtil {
             return Integer.valueOf(get(key));
         } catch (NumberFormatException e) {
             return 0;
-        } catch (MissingResourceException e) {
-            return null;
         }
     }
 
@@ -37,8 +53,6 @@ public class ConfigUtil {
             return Double.valueOf(get(key));
         } catch (NumberFormatException e) {
             return 0.0d;
-        } catch (MissingResourceException e) {
-            return null;
         }
     }
 }

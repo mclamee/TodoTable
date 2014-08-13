@@ -57,10 +57,10 @@ import org.apache.log4j.Logger;
 import org.jb2011.lnf.beautyeye.BeautyEyeLNFHelper;
 import org.jb2011.lnf.beautyeye.BeautyEyeLNFHelper.FrameBorderStyle;
 
+import sun.misc.BASE64Encoder;
+
 import com.wicky.tdl.rmi.BringToFrontImpl;
 import com.wicky.tdl.rmi.IBringToFront;
-
-import sun.misc.BASE64Encoder;
 
 
 /**
@@ -72,7 +72,7 @@ public class SimpleTodoTable extends JTable implements ListSelectionListener {
     private static final Logger LOG;
 /////////////////////////////////////////////////////////////////////////////////////////////
     private static final String USER_HOME = System.getProperty("user.home");
-    private static final String PROFILE_HOME = ConfigUtil.get("profileFolder");
+    private static final String PROFILE_HOME = "/"+ConfigUtil.get("profileFolder");
     private static final File PROFILE = new File(USER_HOME + PROFILE_HOME);
     static{
         if(PROFILE.isFile()){
@@ -93,12 +93,13 @@ public class SimpleTodoTable extends JTable implements ListSelectionListener {
     }
 
     private static final String APP_NAME = ConfigUtil.get("title");
-    private static final String APP_LOGO = ConfigUtil.get("logo");
+    private static final String APP_LOGO = System.getProperty("user.dir") + ConfigUtil.get("logo");
+    private static final String APP_SYSTRAY_LOGO = System.getProperty("user.dir") + ConfigUtil.get("systray");
     private static final Dimension APP_SIZE = new Dimension(ConfigUtil.getInt("width"), ConfigUtil.getInt("height"));
     private static final int APP_SAVE_INTERVAL = (((int) (1000*60*ConfigUtil.getDouble("saveIntervalMinute"))) < 60000)?60000:((int) (1000*60*ConfigUtil.getDouble("saveIntervalMinute")));
     
-    private static final String DATA_FILE = ConfigUtil.get("dataFile");
-    private static final String LOCK_FILE = ConfigUtil.get("lockFile");
+    private static final String DATA_FILE = "/"+ConfigUtil.get("dataFile");
+    private static final String LOCK_FILE = "/"+ConfigUtil.get("lockFile");
     private static final String HOST = ConfigUtil.get("host");
     private static final int PORT = ConfigUtil.getInt("port");
     
@@ -113,7 +114,6 @@ public class SimpleTodoTable extends JTable implements ListSelectionListener {
 
     private SystemTray sysTray;// 当前操作系统的托盘对象
     private TrayIcon trayIcon;// 当前对象的托盘
-    private ImageIcon icon;
     private Timer timer;
     
     private ObjectInputStream in;
@@ -212,8 +212,7 @@ public class SimpleTodoTable extends JTable implements ListSelectionListener {
         mainPan.add(scrollpane, BorderLayout.CENTER);
 
         frame = new JFrame(APP_NAME);
-        icon = new ImageIcon(this.getClass().getResource(APP_LOGO));// 托盘图标
-        frame.setIconImage(icon.getImage());
+        frame.setIconImage(new ImageIcon(APP_LOGO).getImage());
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.getContentPane().add(mainPan);
         frame.pack();
@@ -339,7 +338,8 @@ public class SimpleTodoTable extends JTable implements ListSelectionListener {
                 System.exit(0);
             }
         });
-        trayIcon = new TrayIcon(icon.getImage(), APP_NAME, popupMenu);
+        
+        trayIcon = new TrayIcon(new ImageIcon(APP_SYSTRAY_LOGO).getImage(), APP_NAME, popupMenu);
         trayIcon.addActionListener(backToFrontListener);
     }
     
