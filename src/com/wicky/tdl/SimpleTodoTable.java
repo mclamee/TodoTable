@@ -26,7 +26,10 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.RandomAccessFile;
+import java.lang.management.ManagementFactory;
 import java.nio.channels.FileLock;
+import java.rmi.Naming;
+import java.rmi.registry.LocateRegistry;
 import java.util.Date;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -50,25 +53,57 @@ import javax.swing.table.TableCellEditor;
 import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableColumnModel;
 
+import org.apache.log4j.Logger;
 import org.jb2011.lnf.beautyeye.BeautyEyeLNFHelper;
 import org.jb2011.lnf.beautyeye.BeautyEyeLNFHelper.FrameBorderStyle;
 
-public class SimpleTable extends JTable implements ListSelectionListener {
+import com.wicky.tdl.rmi.BringToFrontImpl;
+import com.wicky.tdl.rmi.IBringToFront;
+
+import sun.misc.BASE64Encoder;
 
 
+/**
+ * Main class for the simple todo table project
+ * @author williamz<quiet_dog@163.com> 2014-08-13
+ */
+public class SimpleTodoTable extends JTable implements ListSelectionListener {
     private static final long serialVersionUID = -3747203421484558542L;
-    
-    private static final String APP_NAME = "Simple ToDo Table";
-    private static final Dimension APP_SIZE = new Dimension(500, 300);
-    
-    private static final String RES_LOGO = "/logo.png";
+    private static final Logger LOG;
+/////////////////////////////////////////////////////////////////////////////////////////////
     private static final String USER_HOME = System.getProperty("user.home");
-    private static final String PROFILE_HOME = "/.todoProfile";
-    private static final String DATA_FILE = "/tableModel.db";
-    private static final String LOCK_FILE = "/runtime.lck";
-    private static final int SAVE_TIMEOUT = 1000*60*5;
-    
+    private static final String PROFILE_HOME = ConfigUtil.get("profileFolder");
+    private static final File PROFILE = new File(USER_HOME + PROFILE_HOME);
+    static{
+        if(PROFILE.isFile()){
+            try {
+                PROFILE.delete();
+            } catch (Exception e) {
+                // ignore
+            }
+        }
+        PROFILE.mkdirs();
+        
+        System.setProperty("PROFILE_HOME", PROFILE.getAbsolutePath());
+        System.setProperty("PID", ManagementFactory.getRuntimeMXBean().getName());
 
+        // setup LOG at the end of static
+        LOG = Logger.getLogger(SimpleTodoTable.class);
+        LOG.warn(".......................... System Start ..........................");
+    }
+
+    private static final String APP_NAME = ConfigUtil.get("title");
+    private static final String APP_LOGO = ConfigUtil.get("logo");
+    private static final Dimension APP_SIZE = new Dimension(ConfigUtil.getInt("width"), ConfigUtil.getInt("height"));
+    private static final int APP_SAVE_INTERVAL = (((int) (1000*60*ConfigUtil.getDouble("saveIntervalMinute"))) < 60000)?60000:((int) (1000*60*ConfigUtil.getDouble("saveIntervalMinute")));
+    
+    private static final String DATA_FILE = ConfigUtil.get("dataFile");
+    private static final String LOCK_FILE = ConfigUtil.get("lockFile");
+    private static final String HOST = ConfigUtil.get("host");
+    private static final int PORT = ConfigUtil.getInt("port");
+    
+/////////////////////////////////////////////////////////////////////////////////////////////
+    
     private File dataFile;
     
     private SimpleTableModel dataModel;
@@ -79,35 +114,33 @@ public class SimpleTable extends JTable implements ListSelectionListener {
     private SystemTray sysTray;// 当前操作系统的托盘对象
     private TrayIcon trayIcon;// 当前对象的托盘
     private ImageIcon icon;
+    private Timer timer;
     
     private ObjectInputStream in;
     private ObjectOutputStream out;
 
     protected boolean dataChanged;
-
-    private Timer timer;
-
     protected boolean runing;
 
-    private static File profile;
-
-    public SimpleTable() throws IOException {
-        dataFile = new File(profile, DATA_FILE);
+    public SimpleTodoTable() throws IOException {
+        dataFile = new File(PROFILE, DATA_FILE);
         if(dataFile.isDirectory())dataFile.delete();
         if(!dataFile.exists()){
             dataFile.createNewFile();
-            System.out.println("No data file exists, creating new file: ["+dataFile.getAbsolutePath()+"]");
+            LOG.debug("No data file exists, creating new file: ["+dataFile.getAbsolutePath()+"]");
         }
         Vector<?> data = null;
         try {
-            System.out.print("Reading data file ...");
+            LOG.debug("Reading data file ... ");
             in = new ObjectInputStream(new FileInputStream(dataFile));
             data = (Vector<?>) in.readObject();
-            System.out.println(" Success!");
+            LOG.debug(">> Success!");
         } catch (EOFException e) {
-            System.out.println(" Canceled: file is empty.");
+            LOG.debug(">> Canceled.");
+            LOG.error("File is empty: ", e);
         } catch (ClassNotFoundException e2) {
-            System.out.println(" Canceled: file format issue.");
+            LOG.debug(">> Canceled.");
+            LOG.error("File format issue: ", e2);
         }finally{
             if(in != null){
                 in.close();
@@ -127,14 +160,14 @@ public class SimpleTable extends JTable implements ListSelectionListener {
         this.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseReleased(MouseEvent e) {
-                int r = SimpleTable.this.rowAtPoint(e.getPoint());
-                if (r >= 0 && r < SimpleTable.this.getRowCount()) {
-                    SimpleTable.this.setRowSelectionInterval(r, r);
+                int r = SimpleTodoTable.this.rowAtPoint(e.getPoint());
+                if (r >= 0 && r < SimpleTodoTable.this.getRowCount()) {
+                    SimpleTodoTable.this.setRowSelectionInterval(r, r);
                 } else {
-                    SimpleTable.this.clearSelection();
+                    SimpleTodoTable.this.clearSelection();
                 }
 
-                int rowindex = SimpleTable.this.getSelectedRow();
+                int rowindex = SimpleTodoTable.this.getSelectedRow();
                 if (rowindex < 0)
                     return;
                 if (e.isPopupTrigger() && e.getComponent() instanceof JTable ) {
@@ -143,7 +176,7 @@ public class SimpleTable extends JTable implements ListSelectionListener {
                     delItm.addActionListener(new ActionListener() {
                         @Override
                         public void actionPerformed(ActionEvent e) {
-                            dataModel.removeRow(SimpleTable.this.getSelectedRow());
+                            dataModel.removeRow(SimpleTodoTable.this.getSelectedRow());
                             refreshTable();
                         }
                     });
@@ -163,7 +196,7 @@ public class SimpleTable extends JTable implements ListSelectionListener {
             public void actionPerformed(ActionEvent e) {
                 dataModel.addRow();
                 refreshTable();
-                TableCellEditor ce = SimpleTable.this.getCellEditor();
+                TableCellEditor ce = SimpleTodoTable.this.getCellEditor();
                 if(ce != null){
                     ce.cancelCellEditing();
                 }
@@ -179,29 +212,19 @@ public class SimpleTable extends JTable implements ListSelectionListener {
         mainPan.add(scrollpane, BorderLayout.CENTER);
 
         frame = new JFrame(APP_NAME);
-        icon = new ImageIcon(this.getClass().getResource(RES_LOGO));// 托盘图标
+        icon = new ImageIcon(this.getClass().getResource(APP_LOGO));// 托盘图标
         frame.setIconImage(icon.getImage());
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.getContentPane().add(mainPan);
         frame.pack();
+        frame.setLocationRelativeTo(null);
         frame.setVisible(true);
 
         createTrayIcon();
         // 添加窗口事件,将托盘添加到操作系统的托盘
         frame.addWindowListener(new WindowAdapter() {
             public void windowIconified(WindowEvent e) {
-                try {
-                    sysTray.add(trayIcon);// 将托盘添加到操作系统的托盘
-                    java.awt.EventQueue.invokeLater(new Runnable() {
-                        @Override
-                        public void run() {
-                            frame.setVisible(false);// 使得当前的窗口隐藏
-                            frame.setState(JFrame.NORMAL);
-                        }
-                    });
-                } catch (AWTException e1) {
-                    e1.printStackTrace();
-                }
+                minimizeToTray();
             }
         });
         adjustColumnWidth();
@@ -210,13 +233,13 @@ public class SimpleTable extends JTable implements ListSelectionListener {
             
             @Override
             public void windowClosing(WindowEvent e) {
-                TableCellEditor ce = SimpleTable.this.getCellEditor();
+                TableCellEditor ce = SimpleTodoTable.this.getCellEditor();
                 if(ce != null){
                     ce.stopCellEditing();
                 }
                 timer.cancel();
                 if(!runing){
-                    System.out.println("Window Closing!");
+                    LOG.debug("Window Closing!");
                     saveDataToFile();
                 }
                 super.windowClosing(e);
@@ -230,35 +253,35 @@ public class SimpleTable extends JTable implements ListSelectionListener {
             public void run() {
                 if(dataChanged){
                     runing = true;
-                    System.out.println("Timmer Start!");
+                    LOG.debug("Timmer Start! Save Interval: " + APP_SAVE_INTERVAL);
                     saveDataToFile();
                     runing = false;
                 }
                 dataChanged = false;
             }
 
-        }, new Date(System.currentTimeMillis() + SAVE_TIMEOUT), SAVE_TIMEOUT);
+        }, new Date(System.currentTimeMillis() + APP_SAVE_INTERVAL), APP_SAVE_INTERVAL);
         
         this.addKeyListener(new KeyAdapter() {
 
             @Override
             public void keyReleased(KeyEvent e) {
                 if(e.getKeyCode() == KeyEvent.VK_DELETE){
-                    int selectedRow = SimpleTable.this.getSelectedRow();
+                    int selectedRow = SimpleTodoTable.this.getSelectedRow();
                     if(selectedRow != -1){
-                        TableCellEditor ce = SimpleTable.this.getCellEditor();
+                        TableCellEditor ce = SimpleTodoTable.this.getCellEditor();
                         if(ce != null){
                             ce.cancelCellEditing();
                         }
                         int rowCount = dataModel.getRowCount();
                         if(rowCount != 0){
-                            int result = JOptionPane.showConfirmDialog(SimpleTable.this, "Are you sure to delete this row?", "Confirm Delete", JOptionPane.YES_NO_OPTION);
+                            int result = JOptionPane.showConfirmDialog(SimpleTodoTable.this, "Are you sure to delete this row?", "Confirm Delete", JOptionPane.YES_NO_OPTION);
                             if(result == JOptionPane.YES_OPTION){
                                 dataModel.removeRow(selectedRow);
                                 if(selectedRow < dataModel.getRowCount()){
-                                    SimpleTable.this.setRowSelectionInterval(selectedRow, selectedRow);
+                                    SimpleTodoTable.this.setRowSelectionInterval(selectedRow, selectedRow);
                                 }
-                                TableCellEditor ce2 = SimpleTable.this.getCellEditor();
+                                TableCellEditor ce2 = SimpleTodoTable.this.getCellEditor();
                                 if(ce2 != null){
                                     ce2.cancelCellEditing();
                                 }
@@ -274,20 +297,22 @@ public class SimpleTable extends JTable implements ListSelectionListener {
 
     private void saveDataToFile() {
         try {
-            System.out.print("Saving data ...");
+            LOG.debug("Saving data ... ");
             out = new ObjectOutputStream(new FileOutputStream(dataFile));
             out.writeObject(dataModel.exportData());
-            System.out.println(" Saved.");
+            LOG.debug(">> Saved.");
         } catch (FileNotFoundException e1) {
-            System.out.println(" Canceled: File cannot open.");
+            LOG.debug(">> Canceled.");
+            LOG.error("File cannot open: ", e1);
         } catch (IOException e1) {
-            System.out.println(" Error: " + e1);
+            LOG.debug(">> Canceled.");
+            LOG.error("IOException: ", e1);
         }finally{
             try {
                 out.flush();
                 out.close();
             } catch (IOException e1) {
-                System.out.println("IO Exception: " + e1);
+                LOG.error("IOException: ", e1);
             }
         }
     }
@@ -305,15 +330,7 @@ public class SimpleTable extends JTable implements ListSelectionListener {
         // 为弹出菜单项添加事件
         ActionListener backToFrontListener = new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                sysTray.remove(trayIcon);
-                java.awt.EventQueue.invokeLater(new Runnable() {
-                    @Override
-                    public void run() {
-                        frame.setVisible(true);
-                        frame.toFront();
-                        frame.requestFocus();
-                    }
-                });
+                bringToFront();
             }
         };
         mi.addActionListener(backToFrontListener);
@@ -325,8 +342,36 @@ public class SimpleTable extends JTable implements ListSelectionListener {
         trayIcon = new TrayIcon(icon.getImage(), APP_NAME, popupMenu);
         trayIcon.addActionListener(backToFrontListener);
     }
-
     
+    public void minimizeToTray() {
+        try {
+            sysTray.add(trayIcon);// 将托盘添加到操作系统的托盘
+            java.awt.EventQueue.invokeLater(new Runnable() {
+                @Override
+                public void run() {
+                    frame.setVisible(false);// 使得当前的窗口隐藏
+                    frame.setState(JFrame.NORMAL);
+                }
+            });
+        } catch (AWTException e1) {
+            e1.printStackTrace();
+        }
+        LOG.debug("Minimized window to system tray.");
+    }
+    
+    public void bringToFront() {
+        sysTray.remove(trayIcon);
+        java.awt.EventQueue.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+                frame.setVisible(true);
+                frame.toFront();
+                frame.requestFocus();
+            }
+        });
+        LOG.debug("Restored and brought window to front.");
+    }
+
     /**
     * 调整列宽
     */
@@ -335,8 +380,8 @@ public class SimpleTable extends JTable implements ListSelectionListener {
     TableColumnModel colmodel = this.getColumnModel();
     this.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
     // Set column widths
-    colmodel.getColumn(0).setPreferredWidth(10);
-    colmodel.getColumn(1).setPreferredWidth(200);
+    colmodel.getColumn(0).setPreferredWidth(1);
+    colmodel.getColumn(1).setPreferredWidth(250);
     colmodel.getColumn(2).setPreferredWidth(100);
     colmodel.getColumn(3).setPreferredWidth(10);
     }
@@ -359,6 +404,7 @@ public class SimpleTable extends JTable implements ListSelectionListener {
     }
     
     private static boolean lockInstance(final File file) {
+        LOG.debug("Checking Lock File ["+file+"] ... ");
         try {
             final RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw");
             final FileLock fileLock = randomAccessFile.getChannel().tryLock();
@@ -369,58 +415,120 @@ public class SimpleTable extends JTable implements ListSelectionListener {
                             fileLock.release();
                             randomAccessFile.close();
                             file.delete();
+                            LOG.warn(".......................... System Halt ..........................");
                         } catch (Exception e) {
-                            System.err.println("Unable to remove lock file: " + file);
-                            System.err.println(e);
+                            LOG.error("Unable to remove lock file: " + file, e);
                         }
                     }
                 });
-                System.out.println("OK!");
+                LOG.debug(">> OK!");
                 return true;
             }
         } catch (Exception e) {
-            System.err.println("Unable to create and/or lock file: " + file);
-            System.err.println(e);
+            LOG.error("Unable to create and/or lock file: " + file, e);
         }
-        System.out.println("Failed!");
+        LOG.debug(">> Failed!");
         return false;
     }
     
     public static void main(String[] args) throws FileNotFoundException, IOException {
-        profile = new File(USER_HOME + PROFILE_HOME);
-        if(profile.isFile())profile.delete();
-        profile.mkdirs();
-        File lockFile = new File(profile, LOCK_FILE);
-        System.out.print("Checking Lock File ["+lockFile+"] ... ");
+        setupApplicationStyle();
+        File lockFile = new File(PROFILE, LOCK_FILE);
         if(lockInstance(lockFile)){
-            try {
-                BeautyEyeLNFHelper.frameBorderStyle = FrameBorderStyle.translucencyAppleLike;
-                BeautyEyeLNFHelper.translucencyAtFrameInactive = false;
-                UIManager.put("RootPane.setupButtonVisible", false);
-                BeautyEyeLNFHelper.launchBeautyEyeLNF();
-            } catch (Exception r) {
-            }
-
-            Font font = new Font("微软雅黑", Font.PLAIN, 12);
-            UIManager.put("Frame.titleFont", font);
-            UIManager.put("Menu.font", font);
-            UIManager.put("MenuItem.font", font);
-            UIManager.put("TitledBorder.font", font);
-            UIManager.put("InternalFrame.font", font);
-            UIManager.put("InternalFrame.titleFont", font);
-            UIManager.put("Table.font", font);
-            UIManager.put("TableHeader.font", font);
-            UIManager.put("Button.font", font);
-            UIManager.put("Label.font", font);
-            UIManager.put("List.font", font);
-            
-            try {
-                new SimpleTable();
-            } catch (IOException e) {
-                e.printStackTrace();
+            // start Simple ToDo table
+            SimpleTodoTable table = new SimpleTodoTable();
+            if(!registerServer(table)){
+                LOG.info("No port is avaliable, please specify an unused port in the configuration file.");
             }
         }else{
-            System.out.println("Already Running another instance, exiting program ...");
+            if(!registerClient()){
+                LOG.info("No port is avaliable, please specify an unused port in the configuration file.");
+                JOptionPane.showMessageDialog(null, "Only one running instance is allowed!", "Duplicated Instances Error", JOptionPane.ERROR_MESSAGE);
+            }
+            LOG.info("Already Running another instance, exiting program ...");
+            LOG.warn(".......................... System Halt ..........................");
         }
+    }
+
+    private static void setupApplicationStyle() {
+        try {
+            BeautyEyeLNFHelper.frameBorderStyle = FrameBorderStyle.translucencyAppleLike;
+            BeautyEyeLNFHelper.translucencyAtFrameInactive = false;
+            UIManager.put("RootPane.setupButtonVisible", false);
+            BeautyEyeLNFHelper.launchBeautyEyeLNF();
+        } catch (final Exception r) {
+        }
+
+        final Font font = new Font(ConfigUtil.get("font"), Font.PLAIN, 12);
+        UIManager.put("Frame.titleFont", font);
+        UIManager.put("Menu.font", font);
+        UIManager.put("MenuItem.font", font);
+        UIManager.put("TitledBorder.font", font);
+        UIManager.put("InternalFrame.font", font);
+        UIManager.put("InternalFrame.titleFont", font);
+        UIManager.put("Table.font", font);
+        UIManager.put("TableHeader.font", font);
+        UIManager.put("Button.font", font);
+        UIManager.put("Label.font", font);
+        UIManager.put("List.font", font);
+    }
+
+    private static boolean registerClient() {
+        int offset = 0;
+        boolean ported = false;
+        while(!ported && offset < 10) {
+            try {
+                String jndi = extractJNDI(offset);
+                LOG.debug("Trying port [" + getPort(offset) + "] ... ");
+                IBringToFront hello = (IBringToFront) Naming.lookup(jndi);
+                ported = hello.performAction();
+                LOG.debug(">> Success!");
+                LOG.info("BringToFront RMI Client performed action.");
+            } catch (Exception e) {
+                offset++;
+                LOG.debug(">> Failed!");
+                LOG.error("Remote Exception: ", e);
+            }
+        }
+        return ported;
+    }
+
+    private static boolean registerServer(SimpleTodoTable table) {
+        int offset = 0;
+        boolean ported = false;
+        while(!ported && offset < 10){
+            try{
+                int port = getPort(offset);
+                LOG.debug("Trying port [" + port + "] ... ");
+                LocateRegistry.createRegistry(port);
+                ported = true;
+                LOG.debug(">> Success!");
+                try {
+                    Naming.rebind(extractJNDI(offset), new BringToFrontImpl(table));
+                    LOG.info("BringToFront RMI Server is ready.");
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }catch(Exception e){
+                offset++;
+                LOG.debug(">> Failed!");
+                LOG.error("Register Port Exception: ", e);
+            }
+        }
+        return ported;
+    }
+
+    private static String extractJNDI(int offset) {
+        String encodedHome = new BASE64Encoder().encode(USER_HOME.getBytes());
+        String jndi = "//" + HOST + ":" + getPort(offset) + "/IBringToFront" + encodedHome;
+        LOG.debug("JNDI NAME: " + jndi);
+        return jndi;
+    }
+
+    private static int getPort(int offset) {
+        int port = PORT + offset;
+        return port;
     }
 }

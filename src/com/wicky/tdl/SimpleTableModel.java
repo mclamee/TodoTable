@@ -8,7 +8,7 @@ import javax.swing.table.DefaultTableModel;
 
 /**
  * Table Model Class for Simple Table: 
- * @author williamz@synnex.com 2014年7月2日 下午12:32:34
+ * @author williamz<quiet_dog@163.com> 2014-08-13
  */
 public class SimpleTableModel extends DefaultTableModel {
     

@@ -1,7 +1,9 @@
 package com.wicky.tdl;
+
 /**
- * Indicates that the method is not supported: 
- * @author williamz@synnex.com 2014年7月2日 下午12:35:39
+ * Indicates that the method is not supported:
+ * 
+ * @author williamz<quiet_dog@163.com> 2014-08-13
  */
 public class NotSupportedException extends RuntimeException {
 
