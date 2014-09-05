@@ -16,7 +16,7 @@ public class SimpleTableModel extends DefaultTableModel {
     
     private Vector<String> titles;
     private List<Class<?>> columnTypes;
-    private Vector<?> data;
+    private Vector<Vector<Object>> data;
     
     private int id;
     
@@ -26,9 +26,10 @@ public class SimpleTableModel extends DefaultTableModel {
         columnTypes = Arrays.asList(new Class<?>[]{String.class, String.class, String.class, Boolean.class});
         
         data = new Vector<Vector<Object>>();
-//        data.add(new Vector<Object>(Arrays.asList(new Object[]{++id,"Andrews","Details of Andrews", new Boolean(false)})));
-//        data.add(new Vector<Object>(Arrays.asList(new Object[]{++id,"Tom","Details of Tom", new Boolean(false)})));
-//        data.add(new Vector<Object>(Arrays.asList(new Object[]{++id,"Sida","Details of Sida", new Boolean(false)})));
+        data.add(new Vector<Object>(Arrays.asList(new Object[]{++id,"The 1st Task I need to do","10%", new Boolean(false)})));
+        data.add(new Vector<Object>(Arrays.asList(new Object[]{++id,"The Task In Progress","1. Plan(50%) 2. Get it Done", new Boolean(false)})));
+        data.add(new Vector<Object>(Arrays.asList(new Object[]{++id,"The Task Already Done","100%", new Boolean(true)})));
+        data.add(new Vector<Object>(Arrays.asList(new Object[]{++id,"Call William in the afternoon","18702832137", new Boolean(false)})));
         
         this.setDataVector(data, titles);
     }
@@ -66,7 +67,7 @@ public class SimpleTableModel extends DefaultTableModel {
         return data;
     }
 
-    public void initData(Vector<?> data) {
+    public void initData(Vector<Vector<Object>> data) {
         resetIdField(data);
         this.data = data;
         this.setDataVector(data, titles);

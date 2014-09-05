@@ -122,6 +122,7 @@ public class SimpleTodoTable extends JTable implements ListSelectionListener {
     protected boolean dataChanged;
     protected boolean runing;
 
+    @SuppressWarnings("unchecked")
     public SimpleTodoTable() throws IOException {
         dataFile = new File(PROFILE, DATA_FILE);
         if(dataFile.isDirectory())dataFile.delete();
@@ -129,11 +130,11 @@ public class SimpleTodoTable extends JTable implements ListSelectionListener {
             dataFile.createNewFile();
             LOG.debug("No data file exists, creating new file: ["+dataFile.getAbsolutePath()+"]");
         }
-        Vector<?> data = null;
+        Vector<Vector<Object>> data = null;
         try {
             LOG.debug("Reading data file ... ");
             in = new ObjectInputStream(new FileInputStream(dataFile));
-            data = (Vector<?>) in.readObject();
+            data = (Vector<Vector<Object>>) in.readObject();
             LOG.debug(">> Success!");
         } catch (EOFException e) {
             LOG.debug(">> Canceled.");
