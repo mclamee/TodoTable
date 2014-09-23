@@ -4,12 +4,12 @@
 target/
 out/
 *.class
+*.log
 
 # Mobile Tools for Java (J2ME)
 .mtj.tmp/
 
 # Package Files #
-*.jar
 *.war
 *.ear
 
@@ -19,10 +19,7 @@ hs_err_pid*
 #################
 ## Eclipse
 #################
-
 *.pydevproject
-.project
-.metadata
 bin/
 tmp/
 *.tmp
@@ -30,13 +27,10 @@ tmp/
 *.swp
 *~.nib
 local.properties
-.classpath
-.settings/
 .loadpath
 
-
 # External tool builders
-.externalToolBuilders/
+#.externalToolBuilders/
 
 # Locally stored "Eclipse launch configurations"
 *.launch
