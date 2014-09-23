@@ -1,4 +1,4 @@
-package com.wicky.tdl;
+package com.wicky.samples;
 
 import java.awt.AWTException;
 import java.awt.MenuItem;
@@ -16,14 +16,14 @@ import javax.swing.JFrame;
 /**
  * Author:Roy
  */
-public class TestTray extends JFrame implements Runnable {
+public class TestSysTray extends JFrame implements Runnable {
 
     private static final long serialVersionUID = -574724162758377513L;
     private SystemTray sysTray;// 当前操作系统的托盘对象
     private TrayIcon trayIcon;// 当前对象的托盘
     ImageIcon icon = null;
 
-    public TestTray() {
+    public TestSysTray() {
         this.createTrayIcon();// 创建托盘对象
         init();
     }
@@ -89,7 +89,7 @@ public class TestTray extends JFrame implements Runnable {
     }
 
     public static void main(String[] args) {
-        new TestTray();
+        new TestSysTray();
     }
 
     /*

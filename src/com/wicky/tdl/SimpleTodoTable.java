@@ -111,6 +111,7 @@ public class SimpleTodoTable extends JTable implements ListSelectionListener {
     private JFrame frame;
     private JPanel mainPan;
     private JButton btnAdd;
+    private JButton btnClear;
 
     private SystemTray sysTray;// 当前操作系统的托盘对象
     private TrayIcon trayIcon;// 当前对象的托盘
@@ -191,7 +192,12 @@ public class SimpleTodoTable extends JTable implements ListSelectionListener {
         listMod.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         listMod.addListSelectionListener(this);
 
-        btnAdd = new JButton("Add");
+        this.setUI(new DragDropRowTableUI());  
+        
+        Dimension btnSize = new Dimension(150, 25);
+        
+        btnAdd = new JButton("Add New");
+        btnAdd.setPreferredSize(btnSize);
         btnAdd.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -204,9 +210,35 @@ public class SimpleTodoTable extends JTable implements ListSelectionListener {
             }
         });
 
+        btnClear = new JButton("Delete Finishied");
+        btnClear.setPreferredSize(btnSize);
+        btnClear.addActionListener(new ActionListener() {
+            
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                TableCellEditor ce = SimpleTodoTable.this.getCellEditor();
+                if(ce != null){
+                    ce.cancelCellEditing();
+                }
+                int rowCount = dataModel.getRowCount();
+                for (int rowId = 0;rowId < rowCount;rowId++) {
+                    Boolean value = (Boolean) dataModel.getValueAt(rowId, 3);
+                    if(value){
+                        dataModel.removeRow(rowId);
+                        rowId--;rowCount--;
+                    }
+                }
+                refreshTable();
+            }
+        });
+        
+        JPanel northPanel = new JPanel();
+        northPanel.add(btnAdd, BorderLayout.CENTER);
+        northPanel.add(btnClear, BorderLayout.CENTER);
+        
         mainPan = new JPanel();
         mainPan.setLayout(new BorderLayout());
-        mainPan.add(btnAdd, BorderLayout.NORTH);
+        mainPan.add(northPanel, BorderLayout.NORTH);
 
         JScrollPane scrollpane = new JScrollPane(this);
         scrollpane.setPreferredSize(APP_SIZE);
