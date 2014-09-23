@@ -1,4 +1,4 @@
-package com.wicky.tdl;
+package com.wicky.tdl.util;
 
 import java.io.BufferedInputStream;
 import java.io.FileInputStream;
