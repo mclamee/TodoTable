@@ -318,6 +318,8 @@ public class SimpleTodoTable extends JTable implements ListSelectionListener {
         this.setRowSorter(rowSorter);
         
         jtfFilter = new JTextField();
+        jtfFilter.setForeground(Color.RED);
+        jtfFilter.setFont(jtfFilter.getFont().deriveFont(Font.BOLD));
         JPanel panel = new JPanel(new BorderLayout());
         JLabel label = new JLabel("  Specify a word to search:   ");
         label.addMouseListener(new MouseAdapter() {
