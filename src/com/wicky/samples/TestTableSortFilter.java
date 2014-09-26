@@ -1,6 +1,6 @@
 package com.wicky.samples;
 import java.awt.BorderLayout;
-import javax.swing.JButton;
+
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -16,6 +16,7 @@ import javax.swing.table.TableModel;
 import javax.swing.table.TableRowSorter;
 
 public class TestTableSortFilter extends JPanel {
+    private static final long serialVersionUID = -6261792075390902988L;
 
     private String[] columnNames
             = {"Country", "Capital", "Population in Millions", "Democracy"};
@@ -37,7 +38,7 @@ public class TestTableSortFilter extends JPanel {
             = new TableRowSorter<>(jTable.getModel());
 
     private JTextField jtfFilter = new JTextField();
-    private JButton jbtFilter = new JButton("Filter");
+//    private JButton jbtFilter = new JButton("Filter");
 
     public TestTableSortFilter() {
         jTable.setRowSorter(rowSorter);

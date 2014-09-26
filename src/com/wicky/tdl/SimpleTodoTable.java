@@ -319,7 +319,7 @@ public class SimpleTodoTable extends JTable implements ListSelectionListener {
         
         jtfFilter = new JTextField();
         JPanel panel = new JPanel(new BorderLayout());
-        JLabel label = new JLabel("  Specify a word to search*:   ");
+        JLabel label = new JLabel("  Specify a word to search:   ");
         label.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
