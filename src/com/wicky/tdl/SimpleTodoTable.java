@@ -67,6 +67,7 @@ import javax.swing.table.TableRowSorter;
 import org.apache.log4j.Logger;
 import org.jb2011.lnf.beautyeye.BeautyEyeLNFHelper;
 import org.jb2011.lnf.beautyeye.BeautyEyeLNFHelper.FrameBorderStyle;
+import org.jb2011.lnf.beautyeye.ch3_button.BEButtonUI;
 
 import sun.misc.BASE64Encoder;
 
@@ -130,8 +131,8 @@ public class SimpleTodoTable extends JTable implements ListSelectionListener {
     private TableRowSorter<TableModel> rowSorter;
     private JTextField jtfFilter;
     
-    private SystemTray sysTray;// 当前操作系统的托盘对象
-    private TrayIcon trayIcon;// 当前对象的托盘
+    private SystemTray sysTray;
+    private TrayIcon trayIcon;
     private Timer timer;
     
     private ObjectInputStream in;
@@ -224,7 +225,6 @@ public class SimpleTodoTable extends JTable implements ListSelectionListener {
         this.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseReleased(MouseEvent e) {
-                stopCellEditing();
                 
                 int r = SimpleTodoTable.this.rowAtPoint(e.getPoint());
                 if (r >= 0 && r < SimpleTodoTable.this.getRowCount()) {
@@ -237,6 +237,7 @@ public class SimpleTodoTable extends JTable implements ListSelectionListener {
                 if (rowindex < 0)
                     return;
                 if (e.isPopupTrigger() && e.getComponent() instanceof JTable ) {
+                    stopCellEditing();
                     JPopupMenu popup = new JPopupMenu();
                     JMenuItem delItm = new JMenuItem("Delete");
                     delItm.addActionListener(new ActionListener() {
@@ -260,6 +261,9 @@ public class SimpleTodoTable extends JTable implements ListSelectionListener {
         
         btnAdd = new JButton("Add New");
         btnAdd.setPreferredSize(btnSize);
+        btnAdd.setUI(new BEButtonUI().setNormalColor(BEButtonUI.NormalColor.green));
+        btnAdd.setForeground(Color.WHITE);
+        btnAdd.setFont(btnAdd.getFont().deriveFont(Font.BOLD));
         btnAdd.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -276,6 +280,9 @@ public class SimpleTodoTable extends JTable implements ListSelectionListener {
 
         btnClear = new JButton("Delete Finishied");
         btnClear.setPreferredSize(btnSize);
+        btnClear.setForeground(Color.WHITE);
+        btnClear.setFont(btnClear.getFont().deriveFont(Font.BOLD));
+        btnClear.setUI(new BEButtonUI().setNormalColor(BEButtonUI.NormalColor.red));
         btnClear.addActionListener(new ActionListener() {
             
             @Override
@@ -392,7 +399,6 @@ public class SimpleTodoTable extends JTable implements ListSelectionListener {
 
         // setup system tray icon
         createTrayIcon();
-        // 添加窗口事件,将托盘添加到操作系统的托盘
         frame.addWindowListener(new WindowAdapter() {
             public void windowIconified(WindowEvent e) {
                 minimizeToTray();
@@ -484,17 +490,15 @@ public class SimpleTodoTable extends JTable implements ListSelectionListener {
         }
     }
     
-    /**
-     * 创建系统托盘的对象 步骤: 1,获得当前操作系统的托盘对象 2,创建弹出菜单popupMenu 3,创建托盘图标icon 4,创建系统的托盘对象trayIcon
-     */
+
     public void createTrayIcon() {
-        sysTray = SystemTray.getSystemTray();// 获得当前操作系统的托盘对象
-        PopupMenu popupMenu = new PopupMenu();// 弹出菜单
+        sysTray = SystemTray.getSystemTray();
+        PopupMenu popupMenu = new PopupMenu();
         MenuItem mi = new MenuItem("Show");
         MenuItem exit = new MenuItem("Exit");
         popupMenu.add(mi);
         popupMenu.add(exit);
-        // 为弹出菜单项添加事件
+
         ActionListener backToFrontListener = new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 bringToFront();
@@ -513,11 +517,11 @@ public class SimpleTodoTable extends JTable implements ListSelectionListener {
     
     public void minimizeToTray() {
         try {
-            sysTray.add(trayIcon);// 将托盘添加到操作系统的托盘
+            sysTray.add(trayIcon);
             java.awt.EventQueue.invokeLater(new Runnable() {
                 @Override
                 public void run() {
-                    frame.setVisible(false);// 使得当前的窗口隐藏
+                    frame.setVisible(false);
                     frame.setState(JFrame.NORMAL);
                 }
             });
@@ -540,9 +544,6 @@ public class SimpleTodoTable extends JTable implements ListSelectionListener {
         LOG.debug("Restored and brought window to front.");
     }
 
-    /**
-     * 调整列宽
-     */
     private void adjustColumnWidth() {
         // Tweak the appearance of the table by manipulating its column model
         TableColumnModel colmodel = this.getColumnModel();
@@ -634,7 +635,7 @@ public class SimpleTodoTable extends JTable implements ListSelectionListener {
         } catch (final Exception r) {
         }
 
-        final Font font = new Font(ConfigUtil.get("font"), Font.PLAIN, 12);
+        final Font font = new Font(ConfigUtil.get("font"), Font.PLAIN, 14);
         UIManager.put("Frame.titleFont", font);
         UIManager.put("Menu.font", font);
         UIManager.put("MenuItem.font", font);
